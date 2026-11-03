@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "470543389295",
+    "project_id": "expense-manager-tnut",
+    "storage_bucket": "expense-manager-tnut.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:470543389295:android:5a0d1cd5b4febd4c3c739a",
+        "android_client_info": {
+          "package_name": "com.example.expense_manager"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "470543389295-6c71jl2vs4elpn2mq0ouqghjcecdsk0m.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC4QBZXjo3kd2pr3i-YDunwSFU_xUhaz9w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "470543389295-6c71jl2vs4elpn2mq0ouqghjcecdsk0m.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

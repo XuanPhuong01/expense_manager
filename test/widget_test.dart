@@ -1,27 +1,23 @@
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:expense_manager/main.dart';
 
 void main() {
-  // Bài kiểm thử: màn hình trang chủ có hiển thị đúng không?
-  testWidgets(
-    'Kiem tra man hinh trang chu',
-    (WidgetTester tester) async {
+  testWidgets('Kiem tra man hinh ung dung', (WidgetTester tester) async {
+    // Khoi chay giao dien
+    await tester.pumpWidget(const MyApp());
 
-      // Khởi chạy ứng dụng trong môi trường kiểm thử
-      await tester.pumpWidget(const ExpenseManagerApp());
+    // Kiem tra ten ung dung
+    expect(
+      find.text('Quản lý chi tiêu cá nhân'),
+      findsOneWidget,
+    );
 
-      // Kiểm tra tiêu đề trang chủ
-      expect(
-        find.text('Tổng quan tài chính'),
-        findsOneWidget,
-      );
-
-      // Kiểm tra dòng chữ số dư
-      expect(
-        find.text('Số dư hiện tại'),
-        findsOneWidget,
-      );
-    },
-  );
+    // Kiem tra thong bao Firebase
+    expect(
+      find.text('Kết nối Firebase thành công!'),
+      findsOneWidget,
+    );
+  });
 }
