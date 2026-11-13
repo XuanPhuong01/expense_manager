@@ -1,4 +1,4 @@
-
+import 'transaction_history_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -150,6 +150,21 @@ class WalletScreen extends StatelessWidget {
         ),
         backgroundColor: const Color(0xFFF4F7FF),
         actions: [
+
+IconButton(
+  tooltip: 'Lịch sử giao dịch',
+  icon: const Icon(Icons.history),
+  onPressed: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            const TransactionHistoryScreen(),
+      ),
+    );
+  },
+),
+
 
 IconButton(
   tooltip: 'Thêm giao dịch',
