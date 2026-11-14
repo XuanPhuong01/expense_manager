@@ -1,8 +1,10 @@
-import 'transaction_history_screen.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import 'statistics_screen.dart';
+import 'transaction_history_screen.dart';
 import 'transaction_screen.dart';
 // ==========================================
 // MAN HINH QUAN LY VI TIEN
@@ -150,35 +152,42 @@ class WalletScreen extends StatelessWidget {
         ),
         backgroundColor: const Color(0xFFF4F7FF),
         actions: [
-
-IconButton(
-  tooltip: 'Lịch sử giao dịch',
-  icon: const Icon(Icons.history),
-  onPressed: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) =>
-            const TransactionHistoryScreen(),
-      ),
-    );
-  },
-),
-
-
-IconButton(
-  tooltip: 'Thêm giao dịch',
-  icon: const Icon(Icons.receipt_long),
-  onPressed: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const TransactionScreen(),
-      ),
-    );
-  },
-),
-
+          IconButton(
+            tooltip: 'Thống kê thu chi',
+            icon: const Icon(Icons.bar_chart_rounded),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const StatisticsScreen(),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            tooltip: 'Lịch sử giao dịch',
+            icon: const Icon(Icons.history),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const TransactionHistoryScreen(),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            tooltip: 'Thêm giao dịch',
+            icon: const Icon(Icons.receipt_long),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const TransactionScreen(),
+                ),
+              );
+            },
+          ),
           IconButton(
             tooltip: 'Đăng xuất',
             icon: const Icon(Icons.logout),
