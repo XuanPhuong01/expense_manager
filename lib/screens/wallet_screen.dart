@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
+import 'budget_screen.dart';
 import 'statistics_screen.dart';
 import 'transaction_history_screen.dart';
 import 'transaction_screen.dart';
@@ -152,18 +152,51 @@ class WalletScreen extends StatelessWidget {
         ),
         backgroundColor: const Color(0xFFF4F7FF),
         actions: [
-          IconButton(
-            tooltip: 'Thống kê thu chi',
-            icon: const Icon(Icons.bar_chart_rounded),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const StatisticsScreen(),
-                ),
-              );
-            },
-          ),
+          
+PopupMenuButton<String>(
+  tooltip: 'Thống kê và ngân sách',
+  icon: const Icon(Icons.grid_view_rounded),
+  onSelected: (value) {
+    if (value == 'statistics') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const StatisticsScreen(),
+        ),
+      );
+    } else if (value == 'budget') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const BudgetScreen(),
+        ),
+      );
+    }
+  },
+  itemBuilder: (context) => const [
+    PopupMenuItem<String>(
+      value: 'statistics',
+      child: Row(
+        children: [
+          Icon(Icons.bar_chart_rounded),
+          SizedBox(width: 10),
+          Text('Thống kê thu chi'),
+        ],
+      ),
+    ),
+    PopupMenuItem<String>(
+      value: 'budget',
+      child: Row(
+        children: [
+          Icon(Icons.account_balance_wallet_outlined),
+          SizedBox(width: 10),
+          Text('Quản lý ngân sách'),
+        ],
+      ),
+    ),
+  ],
+),
+
           IconButton(
             tooltip: 'Lịch sử giao dịch',
             icon: const Icon(Icons.history),
