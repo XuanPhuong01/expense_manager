@@ -4,6 +4,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // KIEM TRA CHU TAI KHOAN
     function isOwner(userId) {
       return request.auth != null
         && request.auth.uid == userId;
@@ -16,17 +17,49 @@ service cloud.firestore {
         && data.type in ['cash', 'bank'];
     }
 
+    function transactionPath(userId, transactionId) {
+      return /databases/$(database)/documents/users/$(userId)/transactions/$(transactionId);
+    }
+
+    function walletPath(userId, walletId) {
+      return /databases/$(database)/documents/users/$(userId)/wallets/$(walletId);
+    }
+
+    function signedAmount(data) {
+      return data.type == 'expense'
+        ? -data.amount
+        : data.amount;
+    }
+
+    function validTransaction(data) {
+      return data.keys().hasOnly([
+          'walletId', 'type', 'amount',
+          'category', 'note', 'createdAt'
+        ])
+        && data.keys().hasAll([
+          'walletId', 'type', 'amount',
+          'category', 'note', 'createdAt'
+        ])
+        && data.walletId is string
+        && data.type in ['expense', 'income']
+        && data.amount is int
+        && data.amount > 0
+        && data.amount <= 999999999999
+        && data.category is string
+        && data.category.size() > 0
+        && data.category.size() <= 40
+        && data.note is string
+        && data.note.size() <= 200
+        && data.createdAt == request.time;
+    }
+
+    // 1. QUAN LY VI
     match /users/{userId}/wallets/{walletId} {
 
-      // Chi chu tai khoan duoc xem vi
       allow read: if isOwner(userId);
 
       // Tao vi moi
       allow create: if isOwner(userId)
-        && request.resource.data.keys().hasAll([
-          'name', 'type', 'initialBalance',
-          'balance', 'currency', 'createdAt'
-        ])
         && request.resource.data.keys().hasOnly([
           'name', 'type', 'initialBalance',
           'balance', 'currency', 'createdAt'
@@ -36,20 +69,109 @@ service cloud.firestore {
         && request.resource.data.initialBalance >= 0
         && request.resource.data.initialBalance <= 999999999999
         && request.resource.data.balance
-             == request.resource.data.initialBalance
+          == request.resource.data.initialBalance
         && request.resource.data.currency == 'VND'
         && request.resource.data.createdAt == request.time;
 
-      // Chi duoc sua ten, loai vi va thoi gian cap nhat
+      // Sua thong tin vi hoac cap nhat so du
       allow update: if isOwner(userId)
-        && request.resource.data.diff(resource.data)
-          .affectedKeys()
-          .hasOnly(['name', 'type', 'updatedAt'])
-        && validWalletInfo(request.resource.data)
+        && (
+          (
+            request.resource.data.diff(resource.data)
+              .affectedKeys()
+              .hasOnly(['name', 'type', 'updatedAt'])
+            && validWalletInfo(request.resource.data)
+            && request.resource.data.updatedAt == request.time
+          )
+          ||
+          (
+            request.resource.data.diff(resource.data)
+              .affectedKeys()
+              .hasOnly([
+                'balance', 'updatedAt', 'lastTransactionId'
+              ])
+            && request.resource.data.lastTransactionId is string
+            && !exists(transactionPath(
+              userId, request.resource.data.lastTransactionId
+            ))
+            && existsAfter(transactionPath(
+              userId, request.resource.data.lastTransactionId
+            ))
+            && getAfter(transactionPath(
+              userId, request.resource.data.lastTransactionId
+            )).data.walletId == walletId
+            && request.resource.data.balance is int
+            && request.resource.data.balance ==
+              resource.data.balance +
+              signedAmount(getAfter(transactionPath(
+                userId, request.resource.data.lastTransactionId
+              )).data)
+            && request.resource.data.updatedAt == request.time
+          )
+        );
+
+      allow delete: if false;
+    }
+
+    // 2. QUAN LY GIAO DICH
+    match /users/{userId}/transactions/{transactionId} {
+
+      allow read: if isOwner(userId);
+
+      allow create: if isOwner(userId)
+        && validTransaction(request.resource.data)
+        && exists(walletPath(
+          userId, request.resource.data.walletId
+        ))
+        && getAfter(walletPath(
+          userId, request.resource.data.walletId
+        )).data.lastTransactionId == transactionId
+        && getAfter(walletPath(
+          userId, request.resource.data.walletId
+        )).data.balance ==
+          get(walletPath(
+            userId, request.resource.data.walletId
+          )).data.balance +
+          signedAmount(request.resource.data)
+        && getAfter(walletPath(
+          userId, request.resource.data.walletId
+        )).data.updatedAt == request.time;
+
+      // Chua ho tro sua, xoa giao dich
+      allow update, delete: if false;
+    }
+
+    // 3. QUAN LY NGAN SACH
+    match /users/{userId}/budgets/{budgetId} {
+
+      // Chi chu tai khoan duoc xem ngan sach
+      allow read: if isOwner(userId);
+
+      // Them hoac sua ngan sach
+      allow create, update: if isOwner(userId)
+        && request.resource.data.keys().hasAll([
+          'month', 'categoryKey', 'limit', 'updatedAt'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'month', 'categoryKey', 'limit', 'updatedAt'
+        ])
+        && request.resource.data.month is string
+        && request.resource.data.month.matches(
+          '^20[0-9]{2}-(0[1-9]|1[0-2])$'
+        )
+        && request.resource.data.categoryKey in [
+          'food', 'transport', 'shopping',
+          'education', 'health', 'other'
+        ]
+        && budgetId == request.resource.data.month
+          + '_' + request.resource.data.categoryKey
+        && request.resource.data.limit is int
+        && request.resource.data.limit >= 1000
+        && request.resource.data.limit <= 999999999999
         && request.resource.data.updatedAt == request.time;
 
-      // Chua cho phep xoa vi
-      allow delete: if false;
+      // Chi chu tai khoan duoc xoa ngan sach
+      allow delete: if isOwner(userId);
     }
   }
 }
