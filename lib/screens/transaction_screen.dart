@@ -1,9 +1,9 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/transaction_service.dart';
+import 'receipt_scan_screen.dart';
 
 class TransactionScreen extends StatefulWidget {
   const TransactionScreen({super.key});
@@ -20,6 +20,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
   final _noteController = TextEditingController();
 
   bool _isSaving = false;
+  bool _isScanning = false;
 
   String _type = 'expense';
   String _category = 'Ăn uống';
@@ -31,6 +32,64 @@ class _TransactionScreenState extends State<TransactionScreen> {
     _amountController.dispose();
     _noteController.dispose();
     super.dispose();
+  }
+
+  // Nhan ket qua OCR, chi dien du lieu vao form, KHONG ghi Firestore.
+  Future<void> _scanReceipt() async {
+    if (_isSaving || _isScanning) return;
+    setState(() => _isScanning = true);
+
+    try {
+      final result = await Navigator.of(context).push<ReceiptScanResult>(
+        MaterialPageRoute<ReceiptScanResult>(
+          builder: (_) => const ReceiptScanScreen(),
+        ),
+      );
+
+      if (!mounted || result == null) return;
+
+      // Hoa don mua hang la khoan chi. Khong tu doan danh muc tu OCR.
+      setState(() {
+        if (_type != 'expense') {
+          _type = 'expense';
+          _category = 'Khác';
+        }
+        _amountController.text = result.amount.toString();
+
+        // Chi goi y ghi chu neu nguoi dung chua nhap.
+        // Khong dua toan bo noi dung hoa don (co the chua du lieu rieng tu)
+        // vao Firestore.
+        if (_noteController.text.trim().isEmpty) {
+          final lines = result.recognizedText
+              .split(RegExp(r'\r?\n'))
+              .map((line) => line.trim())
+              .where((line) => line.isNotEmpty)
+              .toList();
+          if (lines.isNotEmpty) {
+            final firstLine = lines.first;
+            final briefLine = firstLine.length > 170
+                ? firstLine.substring(0, 170)
+                : firstLine;
+            _noteController.text = 'Hóa đơn: $briefLine';
+          }
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Đã điền số tiền từ OCR. Hãy kiểm tra số tiền, ví và danh mục trước khi lưu.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Không thể mở màn quét hóa đơn: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _isScanning = false);
+    }
   }
 
   // Xem trước thông tin giao dịch
@@ -86,7 +145,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
 
   // Lưu giao dịch vào Firebase
   Future<void> _saveTransaction() async {
-    if (_isSaving) return;
+    if (_isSaving || _isScanning) return;
 
     if (_formKey.currentState?.validate() != true) return;
 
@@ -246,6 +305,28 @@ class _TransactionScreenState extends State<TransactionScreen> {
                     },
                   ),
 
+                  const SizedBox(height: 12),
+
+                  // OCR ho tro dien so tien, nguoi dung van xac nhan truoc khi luu.
+                  OutlinedButton.icon(
+                    onPressed: (_isSaving || _isScanning) ? null : _scanReceipt,
+                    icon: _isScanning
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.document_scanner_outlined),
+                    label: Text(
+                      _isScanning ? 'Đang mở quét hóa đơn...' : 'Quét hóa đơn (OCR)',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Chọn/chụp ảnh hóa đơn, kiểm tra số tiền nhận dạng rồi tiếp tục.',
+                    style: TextStyle(fontSize: 12, color: Colors.black54),
+                  ),
+
                   const SizedBox(height: 20),
 
                   // Chọn ví từ Firestore
@@ -364,7 +445,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
 
                   // Nút lưu giao dịch
                   FilledButton.icon(
-                    onPressed: _isSaving ? null : _saveTransaction,
+                    onPressed: (_isSaving || _isScanning) ? null : _saveTransaction,
                     icon: _isSaving
                         ? const SizedBox(
                             width: 18,

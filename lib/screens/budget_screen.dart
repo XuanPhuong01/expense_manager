@@ -300,16 +300,29 @@ class _BudgetScreenState extends State<BudgetScreen> {
     required int spent,
   }) {
     final ratio = limit == null ? 0.0 : spent / limit;
-    final statusColor = ratio >= 1
+    final isOver = limit != null && spent > limit;
+    final isAtLimit = limit != null && spent == limit;
+    final isNear = limit != null && spent < limit && ratio >= 0.8;
+
+    final statusColor = isOver || isAtLimit
         ? _red
-        : ratio >= 0.8
+        : isNear
             ? const Color(0xFFF59E0B)
             : _green;
-    final status = ratio >= 1
-        ? 'Đã đạt/vượt hạn mức'
-        : ratio >= 0.8
-            ? 'Sắp chạm hạn mức'
-            : 'Trong hạn mức';
+    final status = isOver
+        ? 'Đã vượt ngân sách'
+        : isAtLimit
+            ? 'Đã dùng hết ngân sách'
+            : isNear
+                ? 'Sắp hết ngân sách'
+                : 'Trong hạn mức';
+    final String? warning = isOver
+        ? 'Đã vượt ${_money(spent - limit)} so với hạn mức.'
+        : isAtLimit
+            ? 'Bạn đã dùng hết hạn mức danh mục này.'
+            : isNear
+                ? 'Sắp hết ngân sách, còn ${_money(limit - spent)}.'
+                : null;
 
     return Card(
       margin: EdgeInsets.zero,
@@ -388,6 +401,36 @@ class _BudgetScreenState extends State<BudgetScreen> {
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ],
+              ),
+              if (warning != null) ...[
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.09),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: statusColor, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          warning,
+                          style: TextStyle(color: statusColor, fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+            if (limit == null && spent > 0) ...[
+              const SizedBox(height: 10),
+              const Text(
+                'Có chi tiêu nhưng chưa đặt hạn mức cho danh mục này.',
+                style: TextStyle(color: Color(0xFFB26A00), fontSize: 12),
               ),
             ],
           ],
