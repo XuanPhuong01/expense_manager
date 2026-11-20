@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../models/transaction_model.dart';
+import '../services/report_export_service.dart';
 
 // Man hinh thong ke su dung du lieu giao dich that tu Firestore.
 // Khong tinh initialBalance thanh thu nhap trong thang.
@@ -33,6 +34,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
   DateTime _selectedMonth = DateTime(DateTime.now().year, DateTime.now().month);
   String? _selectedWalletId;
+  bool _isExporting = false;
 
   String _money(int value) {
     final negative = value < 0;
@@ -71,7 +73,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         .collection('transactions')
         .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
         .where('createdAt', isLessThan: Timestamp.fromDate(end))
-        .snapshots();
+        .snapshots(includeMetadataChanges: true);
 
     return Scaffold(
       backgroundColor: _background,
@@ -128,6 +130,12 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 30),
                 children: [
                   _buildFilters(wallets, chosenWalletId),
+                  const SizedBox(height: 12),
+                  _buildExportButtons(
+                    wallets: wallets,
+                    chosenWalletId: chosenWalletId,
+                    transactions: transactionsSnapshot.data!,
+                  ),
                   const SizedBox(height: 18),
                   _buildHero(report),
                   const SizedBox(height: 18),
@@ -149,6 +157,90 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         },
       ),
     );
+  }
+
+  Widget _buildExportButtons({
+    required List<QueryDocumentSnapshot<Map<String, dynamic>>> wallets,
+    required String? chosenWalletId,
+    required QuerySnapshot<Map<String, dynamic>> transactions,
+  }) {
+    final synced = !transactions.metadata.isFromCache &&
+        !transactions.metadata.hasPendingWrites;
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.table_view_outlined, size: 18),
+                label: const Text('Xuất Excel'),
+                onPressed: (_isExporting || !synced)
+                    ? null
+                    : () => _exportReport(false, chosenWalletId, wallets, transactions),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FilledButton.icon(
+                icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+                label: const Text('Xuất PDF'),
+                onPressed: (_isExporting || !synced)
+                    ? null
+                    : () => _exportReport(true, chosenWalletId, wallets, transactions),
+              ),
+            ),
+          ],
+        ),
+        if (_isExporting) const LinearProgressIndicator(),
+        if (!synced)
+          const Padding(
+            padding: EdgeInsets.only(top: 6),
+            child: Text(
+              'Dữ liệu chưa đồng bộ với máy chủ. Hãy kiểm tra mạng trước khi xuất.',
+              style: TextStyle(fontSize: 12, color: Colors.deepOrange),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _exportReport(
+    bool asPdf,
+    String? chosenWalletId,
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> wallets,
+    QuerySnapshot<Map<String, dynamic>> transactions,
+  ) async {
+    if (_isExporting ||
+        transactions.metadata.isFromCache ||
+        transactions.metadata.hasPendingWrites) {
+      return;
+    }
+    setState(() => _isExporting = true);
+    try {
+      final walletNames = <String, String>{
+        for (final doc in wallets)
+          doc.id: (doc.data()['name'] as String?) ?? 'Ví',
+      };
+      final report = MonthlyExportReport.fromFirestore(
+        month: _selectedMonth,
+        walletId: chosenWalletId,
+        walletNames: walletNames,
+        documents: transactions.docs,
+      );
+      if (asPdf) {
+        await ReportExportService.sharePdf(report);
+      } else {
+        await ReportExportService.shareExcel(report);
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể xuất báo cáo: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isExporting = false);
+    }
   }
 
   Widget _buildFilters(
